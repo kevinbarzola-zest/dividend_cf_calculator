@@ -1,7 +1,8 @@
 import datetime
-from dateutil.relativedelta import relativedelta
-import os
+import sys
+
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 import pyodbc
 import win32com.client as win32
 from xbbg import blp
@@ -51,32 +52,28 @@ def main():
 
     cursor.execute(
         """
-        SELECT a.ZestID, s.Subyacente
-        FROM (T_AUTOCALL a
-        INNER JOIN REL_NOTASUBYAC s ON a.ZestID = s.ZestID)
-        INNER JOIN POSITIONS_ZBLX p ON a.ZestID = p.ZestID
-        WHERE a.FinalValueDate >= ?
-        AND a.ISSUEDATE <= ?
-        AND (a.FECHAAUTOCALL IS NULL OR a.FECHAAUTOCALL >= ?)
-        AND s.FechaSalida IS NULL
-        AND p.Fecha = ?
-        ORDER BY a.ZestID;
+        SELECT p.ZestID
+        FROM T_DIRECTORIO d
+        INNER JOIN POSITIONS_ZBLX p ON d.ZestID = p.ZestID
+        WHERE p.Fecha = ?
+        AND d.Tipo = ?
+        ORDER BY p.ZestID;
         """,
-        (today, today, today, last_date)
+        (last_date, "Equity")
     )
 
-    active_notes = cursor.fetchall()
-    for note in active_notes:
+    active_stocks = cursor.fetchall()
+    for note in active_stocks:
         print(note)
 
-    subys = list(set([x[1] + " Equity" for x in active_notes]))
+    subys = list(set([x[0] + " Equity" for x in active_stocks]))
 
     divs_by_suby = pd.DataFrame()
     first_df_was_found = False
     for i in range(len(subys)):
-        prices = blp.bds(subys[i], 'DVD_Hist_All', DVD_Start_Dt=start_date.strftime('%Y%m%d')).reset_index()
-        print(f"Subyacente {subys[i]} #######################################################")
-        if not prices.empty:
+        prices = blp.bds(subys[0], 'DVD_Hist_All', DVD_Start_Dt=start_date.strftime('%Y%m%d')).reset_index()
+        print(f"Subyacente {subys[0]} #######################################################")
+        if prices:
             if not first_df_was_found:
                 divs_by_suby = prices
                 first_df_was_found = True
@@ -85,22 +82,19 @@ def main():
             print(prices.to_string())
 
     # I asume the column payable_date is of type Datetime. If that's not the case, adjust accordingly
-    divs_by_suby = divs_by_suby[divs_by_suby["payable_date"] > oldest_payable_date.date()]
+    divs_by_suby = divs_by_suby[divs_by_suby["payable_date"] > oldest_payable_date]
 
     filename = "divs_by_suby_" + today.strftime("%Y-%m-%d") + ".xlsx"
     divs_by_suby.to_excel(filename, index=False)
 
     addresses = [
         "kevinbarzola@zest.pe",
-        "bloomberg@zest.pe",
     ]
-    filename = os.path.join(os.getcwd(), filename)
     send_email_with_output_file(addresses, filename)
 
-    os.remove(filename)
 
 if __name__ == "__main__":
     # This code will only be executed
     # if the script is run as the main program
-    #if datetime.datetime.today().weekday() == 0:
-    main()
+    if datetime.datetime.today().weekday() == 0:
+        main()
