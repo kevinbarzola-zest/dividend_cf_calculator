@@ -1,7 +1,7 @@
 import datetime
-
-import pandas as pd
 from dateutil.relativedelta import relativedelta
+import os
+import pandas as pd
 import pyodbc
 import win32com.client as win32
 from xbbg import blp
@@ -74,9 +74,9 @@ def main():
     divs_by_suby = pd.DataFrame()
     first_df_was_found = False
     for i in range(len(subys)):
-        prices = blp.bds(subys[0], 'DVD_Hist_All', DVD_Start_Dt=start_date.strftime('%Y%m%d')).reset_index()
-        print(f"Subyacente {subys[0]} #######################################################")
-        if prices:
+        prices = blp.bds(subys[i], 'DVD_Hist_All', DVD_Start_Dt=start_date.strftime('%Y%m%d')).reset_index()
+        print(f"Subyacente {subys[i]} #######################################################")
+        if not prices.empty:
             if not first_df_was_found:
                 divs_by_suby = prices
                 first_df_was_found = True
@@ -85,19 +85,22 @@ def main():
             print(prices.to_string())
 
     # I asume the column payable_date is of type Datetime. If that's not the case, adjust accordingly
-    divs_by_suby = divs_by_suby[divs_by_suby["payable_date"] > oldest_payable_date]
+    divs_by_suby = divs_by_suby[divs_by_suby["payable_date"] > oldest_payable_date.date()]
 
     filename = "divs_by_suby_" + today.strftime("%Y-%m-%d") + ".xlsx"
     divs_by_suby.to_excel(filename, index=False)
 
     addresses = [
         "kevinbarzola@zest.pe",
+        "bloomberg@zest.pe",
     ]
+    filename = os.path.join(os.getcwd(), filename)
     send_email_with_output_file(addresses, filename)
 
+    #os.remove(filename)
 
 if __name__ == "__main__":
     # This code will only be executed
     # if the script is run as the main program
-    if datetime.datetime.today().weekday() == 0:
-        main()
+    #if datetime.datetime.today().weekday() == 0:
+    main()
