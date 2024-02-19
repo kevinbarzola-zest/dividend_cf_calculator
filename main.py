@@ -45,7 +45,7 @@ def main():
     )
     last_date = max([x[0] for x in cursor.fetchall()])
 
-    today = datetime.datetime(2024, 2, 9).replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
     start_date = today - relativedelta(years=1)
     oldest_payable_date = today - relativedelta(days=30)
 
@@ -97,7 +97,7 @@ def main():
     filename = os.path.join(os.getcwd(), filename)
     send_email_with_output_file(addresses, filename)
 
-    #os.remove(filename)
+    os.remove(filename)
 
 if __name__ == "__main__":
     # This code will only be executed
